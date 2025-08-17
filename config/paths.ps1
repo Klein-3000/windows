@@ -126,20 +126,23 @@ foreach ($key in $script:paths.Keys) {
 
     New-Item -Path "Function:\global:$key" -Value $functionBody -Force | Out-Null
 }
-# 🔧 列出所有可用跳转命令（仅在调试模式下显示）
+
 function global:list-path {
-    if ($script:paths -and $script:paths.Count -gt 0) {
-        if ($DEBUG_PATHS) {
-            Write-Host "`n🎯 当前可用快速跳转命令：" -ForegroundColor Cyan
-            foreach ($key in $script:paths.Keys | Sort-Object) {
-                $path = $script:paths[$key]
-                $pathDisplay = if ([string]::IsNullOrWhiteSpace($path)) { "<空>" } else { $path }
-                Write-Host "  $key`:`t→ $pathDisplay" -ForegroundColor Green
-            }
-        }
+    if (-not $script:paths) {
+        Write-Warning "❌ 路径表未定义。"
+        return
     }
-    else {
+
+    if ($script:paths.Count -eq 0) {
         Write-Warning "未定义任何路径跳转命令。"
+        return
+    }
+
+    Write-Host "`n🎯 当前可用快速跳转命令：" -ForegroundColor Cyan
+    foreach ($key in $script:paths.Keys | Sort-Object) {
+        $path = $script:paths[$key]
+        $pathDisplay = if ([string]::IsNullOrWhiteSpace($path)) { "<空>" } else { $path }
+        Write-Host "  $key`:`t→ $pathDisplay" -ForegroundColor Green
     }
 }
 
