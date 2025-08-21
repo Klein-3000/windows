@@ -25,21 +25,36 @@ $HOME\Documents\PowerShell\
 
 通过 `paths.ps1` 实现，支持：
 
-|特性|说明|
-|---|---|
-|🔄 函数即命令|`repo` 是一个函数，不是别名，可接收子目录参数|
-|📁 子目录跳转|`repo docs\myproj` → 跳转到 `D:\0repository\docs\myproj`|
-|🗂 路径集中管理|所有路径定义在 `$script:paths` 哈希表中|
-|🔍 查看所有命令|使用 `list-path` 显示所有可用跳转命令|
-|🛠 用户自定义覆盖|`paths.user.json` 优先于 `paths.default.json`|
+| 特性         | 说明                                                              |
+| ---------- | --------------------------------------------------------------- |
+| 🔄 函数即命令   | `repo` 是一个函数，不是别名，可接收子目录参数                                      |
+| 📁 子目录跳转   | `repo docs\myproj` → 跳转到 `D:\0repository\docs\myproj`           |
+| 🗂 路径集中管理  | 所有路径定义在 `$script:paths` 哈希表中                                    |
+| 🔍 查看所有命令  | 使用 `list-path` 显示所有可用跳转命令                                       |
+| 🛠 用户自定义覆盖 | `paths.user.json` 优先于 `paths.default.json`                      |
+| 💡 变量引用    | `${repo}` 获取路径字符串，可用于脚本                                         |
+| ⌨️ Tab 补全  | `cd ${repo}\l` + `Tab` → `cd D:\0repository\linux` 支持子目录/文件自动补全 |
 ### 📝 示例命令
-```
+```powershell
 repo                 # 跳转到 D:\0repository
 repo docs\learning   # 跳转到 D:\0repository\docs\learning
-linux                # 跳转到 D:\0repository\linux
 lenovo .ssh          # 跳转到 C:\Users\Lenovo\.ssh
 list-path            # 查看所有可用跳转命令
+
+# 获取路径字符串(变量引用)
+${repo}              # 输出: D:\0repository
+ls ${repo}           # 列出 repo 目录内容
+cd ${repo}\linux     # 进入子目录
 ```
+
+> [!hint] tab 键补全 -- 提示
+> 支持
+> - 中文目录
+> - 空格路径
+> - 文件与目录区分显示
+> - 所有使用 `-Path`, `-LiteralPath` 等参数的命令
+
+
 ### 🧩 路径配置文件
 
 - `paths.default.json`：默认路径（建议不要修改）
