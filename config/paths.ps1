@@ -128,12 +128,28 @@ foreach ($key in $script:paths.Keys) {
     New-Item -Path "Function:\global:$key" -Value $functionBody -Force | Out-Null
 }
 
-# ✅ 查看所有跳转命令
+# ✅ 增强版 list-path：支持 -Right 排序
 function global:list-path {
     <#
     .SYNOPSIS
     列出所有可用的路径跳转命令
+    .DESCRIPTION
+    默认按别名（key）排序输出。
+    使用 -Right 参数时，按路径字符串排序，便于根据路径查找别名。
+    .EXAMPLE
+    list-path
+    # 按别名排序输出
+    .EXAMPLE
+    list-path -Right
+    # 按路径排序（适合记得路径但忘了别名）
+    # 相同父目录的路径会聚集，且按长度升序排列
     #>
+    [CmdletBinding()]
+    param(
+        # 按路径排序（右对齐查找模式）
+        [switch]$Right
+    )
+
     if (-not $script:paths) {
         Write-Warning "❌ 路径表未定义。"
         return
@@ -144,11 +160,45 @@ function global:list-path {
         return
     }
 
-    Write-Host "`n🎯 当前可用快速跳转命令：" -ForegroundColor Cyan
-    foreach ($key in $script:paths.Keys | Sort-Object) {
-        $path = $script:paths[$key]
-        $pathDisplay = if ([string]::IsNullOrWhiteSpace($path)) { "<空>" } else { $path }
-        Write-Host "  $key`:`t→ $pathDisplay" -ForegroundColor Green
+    $entries = [System.Collections.Generic.List[PSObject]]::new()
+    foreach ($key in $script:paths.Keys) {
+        $entries.Add([PSCustomObject]@{
+            Key  = $key
+            Path = $script:paths[$key]
+        })
+    }
+
+    if ($Right) {
+        Write-Host "`n🔍 当前可用路径（按路径排序，便于查找）：" -ForegroundColor Cyan
+
+        $sorted = $entries | Sort-Object {
+            $_.Path -replace '\\[^\\]*$', ''  # 父目录
+        }, {
+            $_.Path.Length                    # 路径长度（升序）
+        }, {
+            $_.Path                           # 路径本身
+        }
+
+        $sorted | Format-Table @{
+            Label = 'Alias'
+            Expression = { $_.Key.PadRight(10) }
+        }, @{
+            Label = '→ Path'
+            Expression = { $_.Path }
+        } -AutoSize
+    }
+    else {
+        Write-Host "`n🎯 当前可用快速跳转命令：" -ForegroundColor Cyan
+
+        $sorted = $entries | Sort-Object Key
+
+        $sorted | Format-Table @{
+            Label = 'Alias'
+            Expression = { $_.Key.PadRight(12) }
+        }, @{
+            Label = '→ Path'
+            Expression = { $_.Path }
+        } -AutoSize
     }
 }
 
