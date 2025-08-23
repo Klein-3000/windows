@@ -16,12 +16,14 @@ $config_files = @{
     navigation = Join-Path $CONFIG_DIR "navigation.ps1"
     paths      = Join-Path $CONFIG_DIR "paths.ps1"
     utils      = Join-Path $CONFIG_DIR "utils.ps1"
+    keyhandler = Join-Path $CONFIG_DIR "keyhandler.ps1"
 }
 
 # 可选：创建简短别名（如果不想每次都打 $config_files.）
 $aliases    = $config_files.aliases
 $navigation = $config_files.navigation
 $utils      = $config_files.utils
+$keyhandler = $config_files.keyhandler
 # ❌ 不创建 $paths，避免冲突
 
 # ===============================
@@ -57,6 +59,7 @@ Import-Config "paths"
 Import-Config "navigation"
 Import-Config "aliases"
 Import-Config "utils"
+Import-Config "keyhandler"
 
 # ===============================
 #  启动完成提示
