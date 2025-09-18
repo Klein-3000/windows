@@ -1,5 +1,14 @@
+# environment variable
+$env:EDITOR="nvim"
+$env:path += ";C:\Program Files\Git\usr\bin\"
+
 # Starship Theme
 Invoke-Expression (&starship init powershell)
+$env:STARSHIP_CONFIG="D:\Users\Lenovo\Documents\PowerShell\StarshipTheme\starship.CoryCharlton"
+
+# 解决中文字符乱码问题
+[Console]::InputEncoding = [Console]::OutputEncoding = [Text.Encoding]::Utf8
+$OutputEncoding = [Text.Encoding]::Utf8
 
 # ===================================================================
 #  PowerShell 模块化配置入口
@@ -17,6 +26,7 @@ $config_files = @{
     paths      = Join-Path $CONFIG_DIR "paths.ps1"
     utils      = Join-Path $CONFIG_DIR "utils.ps1"
     keyhandler = Join-Path $CONFIG_DIR "keyhandler.ps1"
+    network    = Join-Path $CONFIG_DIR "network.ps1"
 }
 
 # 可选：创建简短别名（如果不想每次都打 $config_files.）
@@ -24,6 +34,7 @@ $aliases    = $config_files.aliases
 $navigation = $config_files.navigation
 $utils      = $config_files.utils
 $keyhandler = $config_files.keyhandler
+$network    = $config_files.network
 # ❌ 不创建 $paths，避免冲突
 
 # ===============================
@@ -60,6 +71,7 @@ Import-Config "navigation"
 Import-Config "aliases"
 Import-Config "utils"
 Import-Config "keyhandler"
+Import-config "network"
 
 # ===============================
 #  启动完成提示
