@@ -2,6 +2,8 @@
 #  paths.ps1 - 路径跳转函数与变量生成器（完整修复版）
 #  ✅ 支持用户自定义覆盖默认路径
 #  ✅ 生成跳转命令 + 全局变量（如 ${mydosc}）
+#  ✅ 新增：支持 -fzf 参数调用 fzf 交互选择子目录
+#  ✅ 共用 $env:POSH_FZF_PREVIEW_CMD 预览命令
 #  🔧 调试开关：$env:DEBUG_PATHS=1; . $PROFILE
 # ===================================================================
 
@@ -90,40 +92,87 @@ foreach ($key in $script:paths.Keys) {
     # ✅ 创建全局变量：如 $global:mydosc
     Set-Variable -Name $key -Value $root -Scope Global -Force
 
-    # ✅ 创建跳转函数
+    # ✅ 创建跳转函数（支持 -fzf）
     $currentKey = $key
     $currentPaths = $script:paths
 
     $functionBody = {
-        param([string]$SubPath = '')
+        param(
+            [Parameter(Position = 0)]
+            [string]$SubPath = '',
+
+            [Parameter()]
+            [switch]$Fzf
+        )
+
         $root = $currentPaths[$currentKey]
         if (-not $root) {
             Write-Error "❌ 路径 '$currentKey' 未定义或为空"
             return
         }
 
-        if (-not $SubPath.Trim()) {
-            if (Test-Path $root) {
+        if (-not (Test-Path -LiteralPath $root)) {
+            Write-Error "❌ 根路径不存在: $root"
+            return
+        }
+
+        # ========== 非 Fzf 模式：直接跳转 ==========
+        if (-not $Fzf) {
+            if (-not $SubPath.Trim()) {
                 Set-Location $root
                 return
             }
+
+            $normalized = $SubPath -replace '[\\/]', [IO.Path]::DirectorySeparatorChar
+            $target = Join-Path $root $normalized
+
+            if (Test-Path -LiteralPath $target -PathType Container) {
+                Set-Location $target
+            }
             else {
-                Write-Error "路径不存在: $root"
+                Write-Error "目录不存在或不是文件夹: $target"
+            }
+            return
+        }
+
+        # ========== Fzf 模式：交互式选择子目录 ==========
+        $target = $root
+
+        if ($SubPath.Trim()) {
+            $normalizedPath = $SubPath -replace '[\\/]', [IO.Path]::DirectorySeparatorChar
+            $target = Join-Path $root $normalizedPath
+            if (-not (Test-Path -LiteralPath $target -PathType Container)) {
+                Write-Error "路径不存在: $target"
                 return
             }
         }
 
-        # 标准化路径分隔符
-        $normalized = $SubPath -replace '[\\/]', '\\'
-        $target = Join-Path $root $normalized
+        $subDirs = Get-ChildItem -LiteralPath $target -Directory | ForEach-Object { $_.FullName }
+        if ($subDirs.Count -eq 0) {
+            Write-Warning "目标目录中没有子目录，无法使用 fzf 进行选择。"
+            return
+        }
 
-        if (Test-Path $target -PathType Container) {
-            Set-Location $target
+        # ✅ 使用环境变量 $env:POSH_FZF_PREVIEW_CMD，未设置则默认为 'ls'
+        $previewCmd = $env:POSH_FZF_PREVIEW_CMD ?? 'ls'
+
+        $selected = $subDirs | fzf --height=50% --preview "$previewCmd {}" --preview-window=right,70%
+
+        if (-not $selected) {
+            Write-Host "未选择任何目录。" -ForegroundColor Yellow
+            return
         }
-        else {
-            Write-Error "目录不存在或不是文件夹: $target"
+
+        # ✅ 清理隐藏字符并验证路径
+        $cleanedPath = $selected.Trim() -replace "[\uFEFF\u200B]", ""
+
+        if (Test-Path -LiteralPath $cleanedPath -PathType Container) {
+            Set-Location -LiteralPath $cleanedPath
+            Write-Host "已进入: $(Resolve-Path .)" -ForegroundColor Green
+        } else {
+            Write-Error "目标路径无效或不存在: $cleanedPath"
         }
-    }.GetNewClosure()
+    }.GetNewClosure()  # ✅ 必须紧贴 } 后面，不能换行！
 
     New-Item -Path "Function:\global:$key" -Value $functionBody -Force | Out-Null
 }

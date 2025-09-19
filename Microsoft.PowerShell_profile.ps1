@@ -1,6 +1,8 @@
 # environment variable
 $env:EDITOR="nvim"
 $env:path += ";C:\Program Files\Git\usr\bin\"
+# 快速切换目录 -fzf参数的预览命令
+$env:POSH_FZF_PREVIEW_CMD="eza --icons"
 
 # Starship Theme
 Invoke-Expression (&starship init powershell)
