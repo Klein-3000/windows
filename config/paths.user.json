@@ -3,11 +3,12 @@
   "mod": "D:\\2-桌宠\\live2d-model",
   "l2d": "D:\\2-桌宠\\live2d",
   "gittest": "D:\\2-桌宠\\test",
-  "ob" : "D:\\0repository\\路由与交换技术\\.obsidian",
+  "obcfg" : "D:\\0repository\\路由与交换技术\\.obsidian",
   "repo": "D:\\0repository",
   "linux": "D:\\0repository\\linux",
   "rk" : "D:\\0repository\\软考网工",    
   "wallpaper": "D:\\Steam\\steamapps\\workshop\\content\\431960",
   "crawler" : "D:\\Project\\crawler",
+  "nvimconfig" : "D:\\0repository\\config\\.dotfile\\nvim\\.config\\nvim",
   "vts": "D:\\Steam\\steamapps\\common\\VTube Studio\\VTube Studio_Data\\StreamingAssets\\Live2DModels"
 }
