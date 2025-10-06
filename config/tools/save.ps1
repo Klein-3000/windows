@@ -1,4 +1,4 @@
-function save {
+function global:save {
     [CmdletBinding()]
     param(
         [Parameter(Position=0)]

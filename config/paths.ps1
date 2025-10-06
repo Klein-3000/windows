@@ -281,7 +281,10 @@ function global:list-var {
 }
 
 # 最终提示
-Write-Host "✅ 路径配置已加载（共 $($script:paths.Count) 个命令）" -ForegroundColor Green
+# 在 paths.ps1 文件末尾替换为：
+if (Get-Command 'Write-ConfigStatus' -ErrorAction Ignore) {
+    Write-ConfigStatus "✅ 路径配置已加载（共 $($script:paths.Count) 个命令）" -Color Green
+}
 
 # ===================================================================
 #  Tab 补全：支持 ${repo}\xxx 的路径自动补全（PowerShell 5.1 兼容版）

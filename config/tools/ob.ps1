@@ -1,4 +1,4 @@
-function ob {
+function global:ob {
     [CmdletBinding()]
     param(
         [Parameter(Position=0)]

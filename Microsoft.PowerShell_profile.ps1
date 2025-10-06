@@ -12,6 +12,8 @@ $env:EDITOR = "nvim"
 $env:POSH_FZF_PREVIEW_CMD = "eza --icons"
 $env:OBEXE_HOME = "D:\obsidian\obsidian.exe"
 $env:Path += ";C:\Program Files\Git\usr\bin"
+# 加载信息提示 (默认不输出提示信息)
+# $env:POWERSHELL_CONFIG_DEBUG=1
 
 # ===============================
 #  解决中文乱码 & 输出编码问题
@@ -44,14 +46,29 @@ $config_files = [ordered]@{
     tools      = Join-Path $CONFIG_DIR "tools"  # tools 目录路径
 }
 
-# 可选：创建简短别名（避免频繁输入 $config_files.xxx）
-# paths输出效果不符预期
-#$script:paths      = $config_files.paths
-$script:utils      = $config_files.utils
-$script:navigation = $config_files.navigation
-$script:aliases    = $config_files.aliases
-$script:keyhandler = $config_files.keyhandler
-$script:network    = $config_files.network
+# ===============================
+#  调试开关：支持 1/true/yes/on（不区分大小写）
+# ===============================
+$env:POWERSHELL_CONFIG_DEBUG = $env:POWERSHELL_CONFIG_DEBUG ?? 'false'
+$script:ConfigDebug = @('1', 'true', 'yes', 'on') -contains $env:POWERSHELL_CONFIG_DEBUG.ToString().ToLower().Trim()
+
+# ===============================
+#  通用状态输出函数（用于顺序加载和懒加载）
+# ===============================
+function Write-ConfigStatus {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message,
+
+        [ConsoleColor]$Color = 'Gray',
+
+        [switch]$Always   # 始终输出（用于错误/警告）
+    )
+
+    if ($Always -or $script:ConfigDebug) {
+        Write-Host $Message -ForegroundColor $Color
+    }
+}
 
 # ===============================
 #  定义函数：Import-Config
@@ -66,23 +83,18 @@ function Import-Config {
     }
     if (Test-Path $path) {
         try {
-            Write-Host "⏳ 加载配置: $Name ..." -ForegroundColor Gray
+            Write-ConfigStatus "⏳ 加载配置: $Name ..." -Color Gray
             . $path
-            Write-Host "✅ 已加载: $Name" -ForegroundColor Green
+            Write-ConfigStatus "✅ 已加载: $Name" -Color Green
         }
         catch {
-            Write-Error "❌ 加载失败: $Name`n$_"
+            Write-Error "❌ 加载失败: $Name`n$_" -ErrorAction Continue
         }
     }
     else {
         Write-Warning "⚠️ 配置文件未找到: $path"
     }
 }
-
-# ===============================
-#  模式设置
-# ===============================
-Set-PSReadLineOption -EditMode Emacs
 
 # ===============================
 #  加载所有核心配置模块（顺序重要！）
@@ -95,30 +107,73 @@ Import-Config "keyhandler"
 Import-Config "network"
 
 # ===============================
-#  自动加载 config/tools/ 中的所有 .ps1 脚本（插件系统）
+#  模式设置
+# ===============================
+Set-PSReadLineOption -EditMode Emacs
+
+# ===============================
+#  注册 config/tools/ 中的工具脚本（懒加载）
 # ===============================
 $toolsDir = $config_files.tools
 $script:tools = [ordered]@{}
+$script:loaded_tools = @()  # 记录已加载的工具名
 
 if (Test-Path $toolsDir) {
-    Write-Host "⏳ 加载工具模块: tools ..." -ForegroundColor Gray
-    Get-ChildItem $toolsDir -Filter "*.ps1" -File -Recurse | Sort-Object Name | ForEach-Object {
-        $toolName = $_.BaseName
-        $script:tools[$toolName] = $_.FullName
+    Write-ConfigStatus "🔍 扫描工具脚本（懒加载）..." -Color Gray
+
+    # 只获取根目录下的 .ps1 文件
+    $toolScripts = Get-ChildItem $toolsDir -File -Filter "*.ps1" | Where-Object {
+        $_.DirectoryName -eq $toolsDir
+    } | Sort-Object Name
+
+    foreach ($file in $toolScripts) {
+        $toolName = $file.BaseName
+        $script:tools[$toolName] = $file.FullName  # 记录路径用于调试
+
+        # 创建懒加载函数（使用闭包避免变量捕获问题）
+        $loaderScript = "
+        function global:$toolName {
+            if (`$script:loaded_tools -notcontains '$toolName') {
+                Write-ConfigStatus '⏳ 正在加载工具: $toolName ...' -Color Gray
+                try {
+                    . '$($file.FullName)'
+                    `$script:loaded_tools += '$toolName'
+                    Write-ConfigStatus '✅ $toolName 已加载' -Color Green
+
+                    # 🔥 关键修复：加载完成后，删除当前懒加载函数
+                    Remove-Item 'function:global:$toolName' -ErrorAction SilentlyContinue
+
+                    # 如果脚本定义了同名命令，则直接调用一次
+                    if (Get-Command '$toolName' -CommandType Function, Cmdlet, Application -ErrorAction Ignore) {
+                        & '$toolName' @args
+                    }
+                    return
+                }
+                catch {
+                    Write-Error '❌ 加载失败: $toolName`n\$_' -ErrorAction Continue
+                    return
+                }
+            }
+
+            # ✅ 安全兜底：如果已加载但命令未正确定义
+            Write-Warning '⚠️ $toolName 已加载，但未找到可用命令。'
+        }
+        "
+
         try {
-            Write-Host "⏳ 加载工具: $toolName ..." -ForegroundColor Gray
-            . $_.FullName
-            Write-Host "✅ 已加载: $toolName" -ForegroundColor Green
+            Invoke-Expression $loaderScript
+            Write-ConfigStatus "💤 已注册懒加载命令: $toolName" -Color Yellow
         }
         catch {
-            Write-Error "❌ 加载失败: $toolName`n$_"
+            Write-Warning "⚠️ 无法注册懒加载命令: $toolName"
         }
     }
-    Write-Host "✅ 所有工具脚本加载完成（共 $($tools.Count) 个工具）" -ForegroundColor Cyan
+
+    Write-ConfigStatus "✅ 共注册了 $($toolScripts.Count) 个懒加载工具" -Color Cyan
 }
 else {
     Write-Warning "⚠️ 工具目录不存在: $toolsDir"
-    Write-Host "💡 提示: 你可以创建该目录并放入自定义工具脚本。" -ForegroundColor Yellow
+    Write-ConfigStatus "💡 提示: 你可以创建该目录并放入自定义工具脚本。" -Color Yellow
 }
 
 # ===============================
@@ -133,9 +188,11 @@ catch {
 }
 
 # ===============================
-#  启动完成提示
+#  启动完成提示（可静音）
 # ===============================
-Write-Host "🎉 PowerShell 配置已加载" -ForegroundColor Cyan
+if ($env:POWERSHELL_CONFIG_QUIET -ne 'true') {
+    Write-Host "🎉 PowerShell 配置已加载" -ForegroundColor Cyan
+}
 
 # ===============================
 #  便捷命令

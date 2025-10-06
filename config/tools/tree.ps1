@@ -1,4 +1,4 @@
-function tree {
+function global:tree {
     [CmdletBinding()]
     param(
         [Parameter(Position=0)]
