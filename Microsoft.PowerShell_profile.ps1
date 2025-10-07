@@ -13,7 +13,7 @@ $env:POSH_FZF_PREVIEW_CMD = "eza --icons"
 $env:OBEXE_HOME = "D:\obsidian\obsidian.exe"
 $env:Path += ";C:\Program Files\Git\usr\bin"
 # 加载信息提示 (默认不输出提示信息)
-# $env:POWERSHELL_CONFIG_DEBUG=1
+$env:POWERSHELL_CONFIG_DEBUG=1
 
 # ===============================
 #  解决中文乱码 & 输出编码问题
@@ -105,6 +105,69 @@ Import-Config "navigation"
 Import-Config "aliases"
 Import-Config "keyhandler"
 Import-Config "network"
+
+# ===============================
+#  request 函数（在任何 Import-Config 之前！）
+# ===============================
+function request {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ResourceSpec
+    )
+
+    # 解析格式：type:name
+    if ($ResourceSpec -notmatch "^(\w+):(.+)$") {
+        Write-Error "❌ 格式错误：请使用 'type:name' 格式，如 'module:font'"
+        return $false
+    }
+
+    $type = $matches[1].ToLower()
+    $name = $matches[2]
+
+    # 定义资源类型映射
+    $ResourceMap = @{
+        module = "modules"
+        theme  = "themes"
+        plugin = "plugins"
+        lib    = "libs"
+        # 可随时扩展
+    }
+
+    if (-not $ResourceMap.ContainsKey($type)) {
+        Write-Error "❌ 不支持的资源类型: '$type'。支持的类型: $($ResourceMap.Keys -join ', ')"
+        return $false
+    }
+
+    $basePath = Join-Path $CONFIG_DIR $ResourceMap[$type]
+    $resourcePath = Join-Path $basePath $name
+
+    if (-not (Test-Path $resourcePath)) {
+        Write-Error "❌ 资源不存在: $resourcePath"
+        return $false
+    }
+
+    # 加载该目录下所有 .ps1 文件
+    $scripts = Get-ChildItem $resourcePath -Filter "*.ps1" -File
+    if ($scripts.Count -eq 0) {
+        Write-Warning "⚠️ 该资源目录中没有 .ps1 文件: $resourcePath"
+        return $true  # 不算错误，只是空目录
+    }
+
+    $loaded = 0
+    foreach ($file in $scripts) {
+        try {
+            . $file.FullName
+            Write-Verbose "✅ 加载 [$type] 组件: $name/$($file.BaseName)"
+            $loaded++
+        }
+        catch {
+            Write-Error "❌ 加载失败: $name/$($file.Name)`n$_"
+        }
+    }
+
+    Write-ConfigStatus "✅ 已加载 '$name' ($type)，共 $loaded 个脚本" -Color Green
+    return $true
+}
 
 # ===============================
 #  模式设置
