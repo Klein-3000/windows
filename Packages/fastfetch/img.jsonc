@@ -1,0 +1,46 @@
+{
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+    "logo": {
+        "source": "~\\.config\\fastfetch\\logos\\augusta.png",  // 设置logo源为指定的图片路径
+        "type": "iterm",  // 指定logo类型为iTerm类型，以便支持图片
+        "width": 30,  // 设置logo宽度为30个字符宽
+        "padding": {
+            "top": 2,  // 增加顶部padding为2，使logo下移
+            "left": 6  // 保留原始的左边边距设置
+        }
+    },
+    "display": {
+        "separator": " •  "
+    },
+    "modules": [
+        "title",
+        "separator",
+        "os",
+        "host",
+        "kernel",
+        "uptime",
+        "packages",
+        "shell",
+        "display",
+        "de",
+        "wm",
+        "wmtheme",
+        "theme",
+        "icons",
+        "font",
+        "cursor",
+        "terminal",
+        "terminalfont",
+        "cpu",
+        "gpu",
+        "memory",
+        "swap",
+        "disk",
+        "localip",
+        "battery",
+        "poweradapter",
+        "locale",
+        "break",
+        "colors"
+    ]
+}

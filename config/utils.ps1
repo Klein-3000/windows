@@ -47,7 +47,7 @@ function global:ln {
     }
 }
 
-function global:run {
+function global:myrun {
     param(
         [Parameter(Mandatory = $true, Position = 0)]
         [string]$Name,

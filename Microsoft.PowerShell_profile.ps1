@@ -13,7 +13,7 @@ $env:POSH_FZF_PREVIEW_CMD = "eza --icons"
 $env:OBEXE_HOME = "D:\obsidian\obsidian.exe"
 $env:Path += ";C:\Program Files\Git\usr\bin"
 # 加载信息提示 (默认不输出提示信息)
-$env:POWERSHELL_CONFIG_DEBUG=1
+# $env:POWERSHELL_CONFIG_DEBUG=1
 
 # ===============================
 #  解决中文乱码 & 输出编码问题
@@ -251,6 +251,52 @@ catch {
 }
 
 # ===============================
+#  加载Module
+# ===============================
+# 导入模块
+Import-Module PSFzf
+
+# 设置 Tab 键使用 fzf 补全
+Set-PSReadLineKeyHandler -Key Tab -ScriptBlock { Invoke-FzfTabCompletion }
+
+# 更详细的配置：
+# ctrl+t ： 只递归当前的目录
+$env:FZF_CTRL_T_COMMAND = 'Get-ChildItem -Recurse | ForEach-Object FullName'
+Set-PsFzfOption `
+  -EnableAliasFuzzyCommand `
+  -EnableAliasFuzzyEdit `
+  -PSReadlineChordProvider 'Ctrl+t' `
+  -PSReadlineChordReverseHistory 'Ctrl+r'
+
+# 修复 Ctrl+T 路径拼接问题
+Set-PSReadLineKeyHandler -Key 'Ctrl+t' -ScriptBlock {
+    $files = Get-ChildItem -Recurse | ForEach-Object {
+        if ($_.PSIsContainer) {
+            Join-Path $PWD.Path $_.Name
+        } else {
+            $_.FullName
+        }
+    } | Invoke-Fzf -Multi -Select1 -Exit0
+
+    if ($files) {
+        $quotedFiles = $files | ForEach-Object { "'$_'" }
+        $result = ($quotedFiles -join ' ')
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($result)
+    }
+}
+# terminal-icons
+Import-module Terminal-Icons
+
+# ✅ 修复 Alt+C：自动刷新提示符
+Set-PSReadLineKeyHandler -Key 'Alt+c' -ScriptBlock {
+    $dir = Get-ChildItem -Directory -Recurse | ForEach-Object FullName | Invoke-Fzf -Select1 -Exit0
+    if ($dir) {
+        cd $dir
+        Write-Host "`nChanged location to: $dir" -ForegroundColor Green
+    }
+}
+
+# ===============================
 #  启动完成提示（可静音）
 # ===============================
 if ($env:POWERSHELL_CONFIG_QUIET -ne 'true') {
@@ -264,4 +310,9 @@ if ($env:POWERSHELL_CONFIG_QUIET -ne 'true') {
 function global:reload {
     . $PROFILE
     Write-Host "✅ PowerShell 配置已重新加载" -ForegroundColor Green
+}
+
+Set-PSReadLineKeyHandler -Key 'Alt+r' -ScriptBlock {
+    $current = (Get-Location).Path
+    Start-Process explorer $current
 }
